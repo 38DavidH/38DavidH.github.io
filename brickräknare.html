@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WordFeud brickräknare</title>
+  <style>
+    body {
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      font-family: sans-serif;
+      background: #f9f9f9;
+      padding: 1px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    #matchForm {
+      margin-bottom: 5px;
+    }
+    input[type="text"] {
+      padding: 8px;
+      font-size: 16px;
+      width: 120px;
+    }
+    button {
+      padding: 8px 8px;
+      font-size: 16px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .tile {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 18px;
+      width: 40px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .tile:hover {
+      background: #efefef;
+    }
+    .tile.disabled {
+      background: #ddd;
+      opacity: 0.6;
+    }
+    @keyframes flash {
+      0% { background-color: #fff; }
+      50% { background-color: #aee; }
+      100% { background-color: #fff; }
+    }
+    .tile.flash {
+      animation: flash 0.3s ease;
+    }
+    .count {
+      font-size: 14px;
+      color: #666;
+    }
+    #matchNameDisplay {
+      font-size: 24px;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    #title {
+      margin-top: 60px;
+      margin-bottom: 25px;
+      font-size: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div id="matchNameDisplay"></div>
+  <h1 id="title">WordFeud brickräknare</h1>
+  <div id="remainingDisplay" style="display:none; margin-bottom: 10px;">
+    <div id="bagCount" style="font-size: 18px;"></div>
+    <div id="opponentCount" style="font-size: 18px;"></div>
+  </div>
+  <form id="matchForm">
+    <label for="matchName">Motståndare:</label>
+    <input type="text" id="matchName" required placeholder=" " />
+    <button type="submit">Starta</button>
+  </form>
+  <div class="grid" id="tiles" style="display:none;"></div>
+
+  <script>
+    const letterCounts = {
+      A: 9, B: 2, C: 1, D: 5, E: 8, F: 2, G: 3,
+      H: 2, I: 5, J: 1, K: 3, L: 5, M: 3, N: 6,
+      O: 6, P: 2, R: 8, S: 8, T: 9, U: 3, V: 2,
+      X: 1, Y: 1, Z: 1, Å: 2, Ä: 2, Ö: 2, '⬜': 2
+    };
+
+    const form = document.getElementById("matchForm");
+    const matchNameDisplay = document.getElementById("matchNameDisplay");
+    const tilesContainer = document.getElementById("tiles");
+
+    const tileState = {};
+
+    function initializeTiles() {
+      for (let letter in letterCounts) {
+        tileState[letter] = {
+          letter: letter,
+          max: letterCounts[letter],
+          count: letterCounts[letter]
+        };
+      }
+    }
+
+    function updateRemaining() {
+      let totalRemaining = 0;
+      for (let letter in tileState) {
+        totalRemaining += tileState[letter].count;
+      }
+
+      const inBag = Math.max(totalRemaining - 7, 0);
+      document.getElementById("bagCount").textContent = `Brickor i påsen: ${inBag} / 90`;
+
+      const opponentDiv = document.getElementById("opponentCount");
+      if (inBag === 0) {
+        opponentDiv.textContent = `Motståndaren har ${totalRemaining} brickor kvar`;
+      } else {
+        opponentDiv.textContent = '';
+      }
+      
+      const match = new URLSearchParams(window.location.search).get("match");
+      if (match) {
+        const newUrl = `${location.pathname}?match=${encodeURIComponent(match)}&state=${encodeGameState()}`;
+        history.replaceState(null, '', newUrl);
+      }
+    }
+
+    function createTile(tile) {
+      const div = document.createElement("div");
+      div.className = "tile";
+      if (tile.count === 0) div.classList.add("disabled");
+
+      div.dataset.letter = tile.letter;
+
+      const countDisplay = document.createElement("div");
+      countDisplay.className = "count";
+      countDisplay.textContent = `${tile.count}/${tile.max}`;
+
+      div.innerHTML = `<strong>${tile.letter}</strong>`;
+      div.appendChild(countDisplay);
+
+      div.addEventListener("click", () => {
+        div.classList.add("flash");
+        setTimeout(() => {
+          tile.count = tile.count > 0 ? tile.count - 1 : tile.max;
+          renderTiles();
+          updateRemaining();
+        }, 150);
+      });
+      return div;
+    }
+
+    function renderTiles() {
+      tilesContainer.innerHTML = "";
+      const active = [], usedUp = [];
+      for (let letter in tileState) {
+        const tile = tileState[letter];
+        (tile.count > 0 ? active : usedUp).push(tile);
+      }
+
+      const collator = new Intl.Collator('sv');
+
+      function sortLetters(a, b) {
+        if (a.letter === '⬜') return 1;
+        if (b.letter === '⬜') return -1;
+        return collator.compare(a.letter, b.letter);
+      }
+
+      active.sort(sortLetters);
+      usedUp.sort(sortLetters);
+
+      [...active, ...usedUp].forEach(tile => {
+        tilesContainer.appendChild(createTile(tile));
+      });
+    }
+
+    function encodeGameState() {
+      const state = Object.entries(tileState).map(([letter, { count }]) => `${letter}:${count}`).join(",");
+      return encodeURIComponent(state);
+    }
+
+    function decodeGameState(stateStr) {
+      const entries = stateStr.split(",").map(pair => pair.split(":"));
+      for (let [letter, count] of entries) {
+        if (tileState[letter]) {
+          tileState[letter].count = parseInt(count);
+        }
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const matchName = document.getElementById("matchName").value.trim();
+      if (matchName) {
+        matchNameDisplay.textContent = "Motståndare: " + matchName;
+        form.style.display = "none";
+        document.getElementById("title").style.display = "none";
+        document.getElementById("remainingDisplay").style.display = "block";
+        tilesContainer.style.display = "flex";
+        initializeTiles();
+        renderTiles();
+        updateRemaining();
+
+        const gameState = encodeGameState();
+        const newUrl = `${location.pathname}?match=${encodeURIComponent(matchName)}&state=${gameState}`;
+        history.replaceState(null, '', newUrl);
+      }
+    });
+
+    window.addEventListener("load", () => {
+      const params = new URLSearchParams(window.location.search);
+      const match = params.get("match");
+      const state = params.get("state");
+      if (match && state) {
+        matchNameDisplay.textContent = "Motståndare: " + match;
+        form.style.display = "none";
+        document.getElementById("title").style.display = "none";
+        document.getElementById("remainingDisplay").style.display = "block";
+        tilesContainer.style.display = "flex";
+        initializeTiles();
+        decodeGameState(state);
+        renderTiles();
+        updateRemaining();
+      }
+    });
+  </script>
+</body>
+</html>
