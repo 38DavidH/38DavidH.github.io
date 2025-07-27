@@ -64,6 +64,14 @@
     .tile.flash {
       animation: flash 0.3s ease;
     }
+    @keyframes flash-red {
+      0% { background-color: #fff; }
+      50% { background-color: #f88; }
+      100% { background-color: #fff; }
+    }
+    .tile.flash-red {
+      animation: flash-red 0.3s ease;
+    }
     .count {
       font-size: 14px;
       color: #666;
@@ -78,6 +86,10 @@
       margin-top: 60px;
       margin-bottom: 25px;
       font-size: 28px;
+    }
+    * {
+      user-select: none;
+      -webkit-user-select: none; /* För Safari/Chrome på mobil */
     }
   </style>
 </head>
@@ -156,16 +168,54 @@
       div.innerHTML = `<strong>${tile.letter}</strong>`;
       div.appendChild(countDisplay);
 
-      div.addEventListener("click", () => {
-        div.classList.add("flash");
-        setTimeout(() => {
-          tile.count = tile.count > 0 ? tile.count - 1 : tile.max;
-          renderTiles();
-          updateRemaining();
-        }, 150);
-      });
+      let pressTimer;
+      let longPressTriggered = false;
+
+      const startPress = () => {
+        longPressTriggered = false;
+
+        div.classList.add("flash"); // Blå blink direkt vid tryck
+        setTimeout(() => div.classList.remove("flash"), 300);
+
+        pressTimer = setTimeout(() => {
+          if (tile.count < tile.max) {
+            div.classList.add("flash-red"); // Blinkar rött
+            navigator.vibrate?.(50); // Vibrerar endast om det går att backa
+            setTimeout(() => {
+              div.classList.remove("flash-red");
+              tile.count += 1;
+              renderTiles();
+              updateRemaining();
+            }, 150);
+            longPressTriggered = true;
+          } else {
+            longPressTriggered = true; // Förhindra korttryck efter långtryck även om inget sker
+          }
+        }, 500);
+      };
+
+      const endPress = () => {
+        clearTimeout(pressTimer);
+        if (!longPressTriggered) {
+          // Kort tryck: minska med 1 om inte redan 0
+          if (tile.count > 0) {
+            div.classList.add("flash");
+            setTimeout(() => {
+              tile.count -= 1;
+              renderTiles();
+              updateRemaining();
+            }, 150);
+          }
+        }
+      };
+
+      // Endast mobilkompatibla event
+      div.addEventListener("touchstart", startPress);
+      div.addEventListener("touchend", endPress);
+
       return div;
     }
+
 
     function renderTiles() {
       tilesContainer.innerHTML = "";
