@@ -78,7 +78,7 @@
     }
     #matchNameDisplay {
       font-size: 24px;
-      margin-top: 10px;
+      margin-top: 20px;
       margin-bottom: 6px;
       font-weight: bold;
     }
@@ -91,14 +91,33 @@
       user-select: none;
       -webkit-user-select: none; /* För Safari/Chrome på mobil */
     }
+    #remainingDisplay {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 18px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    #bagCount, #consonantRatio {
+      font-size: 18px;
+      color: #333;
+      white-space: nowrap;
+    }
+    .statusText {
+      font-size: 18px;
+      color: #333;
+      font-weight: normal;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
   <div id="matchNameDisplay"></div>
   <h1 id="title">WordFeud brickräknare</h1>
   <div id="remainingDisplay" style="display:none; margin-bottom: 10px;">
-    <div id="bagCount" style="font-size: 18px;"></div>
-    <div id="opponentCount" style="font-size: 18px;"></div>
+    <div id="bagAndRatio" class="statusText"></div>
+    <div id="opponentCount" class="statusText"></div>
   </div>
   <form id="matchForm">
     <label for="matchName">Motståndare:</label>
@@ -138,19 +157,20 @@
       }
 
       const inBag = Math.max(totalRemaining - 7, 0);
-      document.getElementById("bagCount").textContent = `Brickor i påsen: ${inBag} / 90`;
 
       const opponentDiv = document.getElementById("opponentCount");
+      const bagAndRatioDiv = document.getElementById("bagAndRatio");
+
       if (inBag === 0) {
         opponentDiv.textContent = `Motståndaren har ${totalRemaining} brickor kvar`;
+        bagAndRatioDiv.textContent = ''; // Dölj konsonantandel
       } else {
         opponentDiv.textContent = '';
-      }
-      
-      const match = new URLSearchParams(window.location.search).get("match");
-      if (match) {
-        const newUrl = `${location.pathname}?match=${encodeURIComponent(match)}&state=${encodeGameState()}`;
-        history.replaceState(null, '', newUrl);
+
+        const ratioData = calculateConsonantRatio();
+        const ratio = Math.round(ratioData.ratio);
+
+        bagAndRatioDiv.innerHTML = `Kvar i påsen: ${inBag}/90 | K.a: ${ratio}%`;
       }
     }
 
@@ -199,9 +219,9 @@
         if (!longPressTriggered) {
           // Kort tryck: minska med 1 om inte redan 0
           if (tile.count > 0) {
+            tile.count -= 1;
             div.classList.add("flash");
             setTimeout(() => {
-              tile.count -= 1;
               renderTiles();
               updateRemaining();
             }, 150);
@@ -253,6 +273,28 @@
           tileState[letter].count = parseInt(count);
         }
       }
+    }
+
+    function calculateConsonantRatio() {
+      const consonants = new Set("BCDFGHJKLMNPRSTVXYZÅÄÖ");
+      let consonantCount = 0;
+      let total = 0;
+
+      for (let letter in tileState) {
+        const count = tileState[letter].count;
+        if (letter !== '⬜') {
+          total += count;
+          if (consonants.has(letter)) {
+            consonantCount += count;
+          }
+        }
+      }
+
+      const baseRatio = total > 0 ? (consonantCount / total) * 100 : 0;
+
+      return {
+        ratio: baseRatio
+      };
     }
 
     form.addEventListener("submit", (e) => {
