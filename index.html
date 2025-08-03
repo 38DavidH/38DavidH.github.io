@@ -139,6 +139,7 @@
     const tilesContainer = document.getElementById("tiles");
 
     const tileState = {};
+    initializeTiles();
 
     function initializeTiles() {
       for (let letter in letterCounts) {
@@ -306,7 +307,6 @@
         document.getElementById("title").style.display = "none";
         document.getElementById("remainingDisplay").style.display = "block";
         tilesContainer.style.display = "flex";
-        initializeTiles();
         renderTiles();
         updateRemaining();
 
@@ -326,7 +326,6 @@
         document.getElementById("title").style.display = "none";
         document.getElementById("remainingDisplay").style.display = "block";
         tilesContainer.style.display = "flex";
-        initializeTiles();
         decodeGameState(state);
         renderTiles();
         updateRemaining();
