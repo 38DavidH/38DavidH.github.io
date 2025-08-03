@@ -173,6 +173,8 @@
 
         bagAndRatioDiv.innerHTML = `Brickor i påsen: ${inBag}/90 | K.a: ${ratio}%`;
       }
+      
+      updateURL();
     }
 
     function createTile(tile) {
@@ -274,6 +276,13 @@
           tileState[letter].count = parseInt(count);
         }
       }
+    }
+
+    function updateURL() {
+      const matchName = document.getElementById("matchNameDisplay").textContent.replace("Motståndare: ", "");
+      const gameState = encodeGameState();
+      const newUrl = `${location.pathname}?match=${encodeURIComponent(matchName)}&state=${gameState}`;
+      history.replaceState(null, '', newUrl);
     }
 
     function calculateConsonantRatio() {
